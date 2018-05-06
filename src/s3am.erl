@@ -20,12 +20,36 @@ get({uri, s3, _} = Uri) ->
       erlcloud_aws:auto_config(),
       cats:unit( erlcloud_s3:make_get_url(3600, Bucket, Object, _) ),
       knet:connect(_, [{active, 1024}]),
-      knet:stream(_)
+      stream(_)
    ];
 
 get(Uri)
  when is_list(Uri) orelse is_binary(Uri) ->
    s3am:get(uri:new(Uri)).
+
+stream(Sock) ->
+   stream(Sock, infinity).
+
+stream(Sock, Timeout) ->
+   case knet:recv(Sock, Timeout) of
+      {ioctl, _, _} ->
+         stream(Sock, Timeout);
+
+      {_, Sock, passive} ->
+         knet:ioctl(Sock, {active, 1024}),
+         stream(Sock, Timeout);
+
+      {_, Sock, eof} ->
+         knet:close(Sock),
+         stream:new();
+
+      {_, Sock, {error, _} = Error} ->
+         knet:close(Sock),
+         stream:new(Error);
+
+      {_, _, Pckt} ->
+         stream:new(Pckt, fun() -> stream(Sock, Timeout) end)
+   end.
 
 
 %%
