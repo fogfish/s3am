@@ -5,6 +5,7 @@
 
 -export([
    get/1,
+   fetch/1,
    put/2,
    objects/1
 ]).
@@ -52,6 +53,21 @@ stream(Sock, Timeout) ->
          stream:new(Pckt, fun() -> stream(Sock, Timeout) end)
    end.
 
+%%
+%%
+-spec fetch(uri:uri()) -> datum:stream().
+
+fetch(Uri) ->
+   case s3am:get(Uri) of
+      #stream{head = {200, _, _}} = Stream ->
+         {ok, stream:tail(Stream)};
+      #stream{head = {404, _, _}} = Stream ->
+         _Reason = scalar:s( stream:list( stream:tail(Stream) ) ),
+         {error, not_found};
+      #stream{head = {Code, _, _}} = Stream ->
+         Reason = scalar:s( stream:list( stream:tail(Stream) ) ),
+         {error, {Code, Reason}}
+   end.
 
 %%
 %%
