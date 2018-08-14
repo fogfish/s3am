@@ -5,7 +5,8 @@
 
 -export([
    get/1,
-   put/2
+   put/2,
+   objects/1
 ]).
 
 
@@ -100,6 +101,51 @@ chunk(N, Chunk, Stream)
 chunk(N, Chunk, Stream) ->
    Head = stream:head(Stream),
    chunk(N + size(Head), [Head|Chunk], stream:tail(Stream)).
+
+%%
+%%
+-spec objects(uri:uri()) -> datum:stream().
+
+objects({uri, s3, _} = Uri) ->
+   stream:unfold(fun s3_objects/1, {s3_bucket(Uri), s3_object(Uri), undefined});
+
+objects(Uri)
+ when is_list(Uri) orelse is_binary(Uri) ->
+   s3am:objects(uri:new(Uri)).
+
+
+s3_objects({Bucket, Prefix, undefined}) ->
+   s3_objects({Bucket, Prefix, s3_lookup(Bucket, Prefix, undefined)});
+
+s3_objects({_, _, []}) ->
+   undefined;
+
+s3_objects({Bucket, Prefix, [H]}) ->
+   {uri:path([$/|H], uri:host(Bucket, uri:new(s3))), 
+      {Bucket, Prefix, s3_lookup(Bucket, Prefix, H)}};
+
+s3_objects({Bucket, Prefix, [H|T]}) ->
+   {uri:path([$/|H], uri:host(Bucket, uri:new(s3))),
+      {Bucket, Prefix, T}}.
+
+s3_lookup(Bucket, Prefix, Seq) ->
+   {ok, Config} = erlcloud_aws:auto_config(),
+   Json = erlcloud_s3:list_objects(Bucket, s3_lookup_query(Prefix, Seq), Config),
+
+   lens:get(
+      lens:c(
+         lens:pair(contents),
+         lens:traverse(),
+         lens:pair(key)
+      ),
+      Json
+   ).
+
+s3_lookup_query(Prefix, undefined) ->
+   [{prefix, Prefix}];
+s3_lookup_query(Prefix, Seq) ->
+   [{prefix, Prefix}, {marker, Seq}].
+
 
 
 
