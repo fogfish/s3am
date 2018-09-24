@@ -21,7 +21,7 @@ get({uri, s3, _} = Uri) ->
       Object =< s3_object(Uri),
       erlcloud_aws:auto_config(),
       cats:unit( erlcloud_s3:make_get_url(3600, Bucket, Object, _) ),
-      knet:connect(_, [{active, 1024}]),
+      knet:connect(_, #{active => 1024}),
       stream(_)
    ];
 
