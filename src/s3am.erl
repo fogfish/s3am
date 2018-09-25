@@ -5,29 +5,36 @@
 
 -export([
    get/1,
+   get/2,
    fetch/1,
+   fetch/2,
    put/2,
    objects/1
 ]).
 
+-define(TIMEOUT, 60000).
 
 %%
 %% 
 -spec get(uri:uri()) -> datum:stream().
+-spec get(uri:uri(), timeout()) -> datum:stream().
 
-get({uri, s3, _} = Uri) ->
+get(Uri) ->
+   get(Uri, ?TIMEOUT).
+
+get({uri, s3, _} = Uri, Timeout) ->
    [either ||
       Bucket =< s3_bucket(Uri),
       Object =< s3_object(Uri),
       erlcloud_aws:auto_config(),
       cats:unit( erlcloud_s3:make_get_url(3600, Bucket, Object, _) ),
       knet:connect(_, #{active => 1024}),
-      stream(_)
+      stream(_, Timeout)
    ];
 
-get(Uri)
+get(Uri, Timeout)
  when is_list(Uri) orelse is_binary(Uri) ->
-   s3am:get(uri:new(Uri)).
+   s3am:get(uri:new(Uri), Timeout).
 
 stream(Sock) ->
    stream(Sock, infinity).
@@ -56,9 +63,13 @@ stream(Sock, Timeout) ->
 %%
 %%
 -spec fetch(uri:uri()) -> datum:stream().
+-spec fetch(uri:uri(), timeout()) -> datum:stream().
 
 fetch(Uri) ->
-   case s3am:get(Uri) of
+   fetch(Uri, ?TIMEOUT).
+
+fetch(Uri, Timeout) ->
+   case s3am:get(Uri, Timeout) of
       #stream{head = {200, _, _}} = Stream ->
          {ok, stream:tail(Stream)};
       #stream{head = {404, _, _}} = Stream ->
