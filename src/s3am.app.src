@@ -1,7 +1,7 @@
 {application, s3am,
    [
       {description, "stream io with aws s3"},
-      {vsn,         "0.1.2"},
+      {vsn,         "0.1.3"},
       {modules,     []},
       {registered,  []},
       {applications,[

@@ -45,7 +45,7 @@ stream(Sock, Timeout) ->
          stream(Sock, Timeout);
 
       {_, Sock, passive} ->
-         knet:ioctl(Sock, {active, 1024}),
+         pipe:send(Sock, {active, 1024}),
          stream(Sock, Timeout);
 
       {_, Sock, eof} ->
